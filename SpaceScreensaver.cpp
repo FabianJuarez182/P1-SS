@@ -14,8 +14,10 @@ struct Planet {
     float orbitRadius;     // Radio de la órbita
     float angle;           // Ángulo actual en la órbita
     float speed;           // Velocidad angular
-    int size;              // Tamaño del planeta
+    int size;              // Tamaño del planeta (radio)
     SDL_Color color;       // Color del planeta
+    bool isVisible;        // Indica si el planeta está visible
+    Uint32 respawnTime;    // Tiempo de regeneración
 };
 
 // Estructura para representar un asteroide
@@ -24,6 +26,13 @@ struct Asteroid {
     int size;
     int dx, dy;            // Velocidad en x e y
     SDL_Color color;
+};
+
+// Estructura para representar una estrella
+struct Star {
+    int x, y;
+    int size;
+    float speed;           // Velocidad de movimiento
 };
 
 // Función para dibujar un círculo
@@ -41,12 +50,22 @@ void drawCircle(SDL_Renderer* renderer, int x, int y, int radius, SDL_Color colo
 }
 
 // Función para actualizar y dibujar un planeta
-void updateAndDrawPlanet(SDL_Renderer* renderer, Planet& planet) {
-    planet.angle += planet.speed;
-    int x = planet.centerX + planet.orbitRadius * cos(planet.angle);
-    int y = planet.centerY + planet.orbitRadius * sin(planet.angle);
+void updateAndDrawPlanet(SDL_Renderer* renderer, Planet& planet, Uint32 currentTime) {
+    if (planet.isVisible) {
+        planet.angle += planet.speed;
+        int x = planet.centerX + planet.orbitRadius * cos(planet.angle);
+        int y = planet.centerY + planet.orbitRadius * sin(planet.angle);
 
-    drawCircle(renderer, x, y, planet.size, planet.color);
+        // Crear un gradiente para hacer los planetas más realistas
+        for (int i = 0; i < planet.size; i++) {
+            SDL_Color gradientColor = { Uint8(planet.color.r * (planet.size - i) / planet.size),
+                                        Uint8(planet.color.g * (planet.size - i) / planet.size),
+                                        Uint8(planet.color.b * (planet.size - i) / planet.size) };
+            drawCircle(renderer, x, y, planet.size - i, gradientColor);
+        }
+    } else if (currentTime >= planet.respawnTime) {
+        planet.isVisible = true;
+    }
 }
 
 // Función para actualizar y dibujar un asteroide
@@ -63,6 +82,33 @@ void updateAndDrawAsteroid(SDL_Renderer* renderer, Asteroid& asteroid) {
     SDL_RenderFillRect(renderer, &rect);
 }
 
+// Función para verificar colisiones entre un asteroide y un planeta
+bool checkCollision(Planet& planet, Asteroid& asteroid) {
+    if (!planet.isVisible) return false;
+
+    int planetX = planet.centerX + planet.orbitRadius * cos(planet.angle);
+    int planetY = planet.centerY + planet.orbitRadius * sin(planet.angle);
+
+    int deltaX = asteroid.x - planetX;
+    int deltaY = asteroid.y - planetY;
+    int distance = sqrt(deltaX * deltaX + deltaY * deltaY);
+
+    return distance < (planet.size + asteroid.size);
+}
+
+// Función para dibujar una nebulosa
+void drawNebula(SDL_Renderer* renderer) {
+    int centerX = rand() % 640;
+    int centerY = rand() % 480;
+    int radius = 50 + rand() % 100;
+
+    for (int i = 0; i < radius; i++) {
+        SDL_SetRenderDrawColor(renderer, rand() % 256, rand() % 256, rand() % 256, 128);
+        SDL_Rect rect = { centerX - i, centerY - i, 2 * i, 2 * i };
+        SDL_RenderFillRect(renderer, &rect);
+    }
+}
+
 // Función para dibujar un agujero negro
 void drawBlackHole(SDL_Renderer* renderer, int centerX, int centerY) {
     int radius = 50;
@@ -72,15 +118,27 @@ void drawBlackHole(SDL_Renderer* renderer, int centerX, int centerY) {
         SDL_Rect rect = { centerX - i, centerY - i, 2 * i, 2 * i };
         SDL_RenderFillRect(renderer, &rect);
     }
+
+    // Efecto de distorsión visual alrededor del agujero negro
+    for (int i = radius; i < radius + 10; i++) {
+        int distortion = rand() % 10;
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_Rect rect = { centerX - i + distortion, centerY - i + distortion, 2 * i, 2 * i };
+        SDL_RenderDrawRect(renderer, &rect);
+    }
 }
 
-// Función para dibujar estrellas
-void drawStars(SDL_Renderer* renderer) {
-    for (int i = 0; i < 100; i++) {
-        int x = rand() % 640;
-        int y = rand() % 480;
+// Función para actualizar y dibujar estrellas
+void updateAndDrawStars(SDL_Renderer* renderer, std::vector<Star>& stars) {
+    for (auto& star : stars) {
+        star.y += star.speed;
+        if (star.y >= 480) {
+            star.y = 0;
+            star.x = rand() % 640;
+        }
+
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        SDL_RenderDrawPoint(renderer, x, y);
+        drawCircle(renderer, star.x, star.y, star.size, {255, 255, 255});
     }
 }
 
@@ -95,6 +153,7 @@ int main(int argc, char* argv[]) {
     // Inicialización de variables
     std::vector<Planet> planets;
     std::vector<Asteroid> asteroids;
+    std::vector<Star> stars;
     srand(time(0));
     bool running = true;
     Uint32 startTime = SDL_GetTicks();
@@ -102,7 +161,7 @@ int main(int argc, char* argv[]) {
     Uint32 lastFPSTime = SDL_GetTicks();  // Para controlar la impresión del FPS cada segundo
 
     // Crear planetas en órbitas
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 8; i++) {
         Planet planet;
         planet.centerX = 320;
         planet.centerY = 240;
@@ -111,11 +170,13 @@ int main(int argc, char* argv[]) {
         planet.speed = 0.01f + (rand() % 10) * 0.001f;
         planet.size = 10 + rand() % 10;
         planet.color = { (Uint8)(rand() % 256), (Uint8)(rand() % 256), (Uint8)(rand() % 256) };
+        planet.isVisible = true;
+        planet.respawnTime = 0;
         planets.push_back(planet);
     }
 
     // Crear asteroides
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 5; i++) {
         Asteroid asteroid;
         asteroid.x = rand() % 640;
         asteroid.y = rand() % 480;
@@ -124,6 +185,16 @@ int main(int argc, char* argv[]) {
         asteroid.dy = 1 + rand() % 3;
         asteroid.color = { 128, 128, 128 };
         asteroids.push_back(asteroid);
+    }
+
+    // Crear estrellas
+    for (int i = 0; i < 100; i++) {
+        Star star;
+        star.x = rand() % 640;
+        star.y = rand() % 480;
+        star.size = 1 + rand() % 2;
+        star.speed = 0.1f + (rand() % 10) * 0.01f; // Velocidad reducida
+        stars.push_back(star);
     }
 
     // Bucle principal
@@ -141,7 +212,7 @@ int main(int argc, char* argv[]) {
         // Calcular FPS
         frameCount++;
         float fps = frameCount / ((currentTime - startTime) / 1000.0f);
-
+        
         // Formatear FPS a dos enteros y dos decimales
         std::ostringstream fpsStream;
         fpsStream << std::fixed << std::setw(2) << std::setprecision(2) << fps;
@@ -162,19 +233,34 @@ int main(int argc, char* argv[]) {
         SDL_RenderClear(renderer);
 
         // Dibujar estrellas
-        drawStars(renderer);
+        updateAndDrawStars(renderer, stars);
 
         // Dibujar agujero negro en el centro de la pantalla
         drawBlackHole(renderer, 320, 240);
 
+        // Dibujar nebulosas
+        //if (rand() % 100 < 5) {
+            //drawNebula(renderer);
+        //}
+
         // Actualizar y dibujar planetas
         for (auto& planet : planets) {
-            updateAndDrawPlanet(renderer, planet);
+            updateAndDrawPlanet(renderer, planet, currentTime);
         }
 
         // Actualizar y dibujar asteroides
         for (auto& asteroid : asteroids) {
             updateAndDrawAsteroid(renderer, asteroid);
+        }
+
+        // Verificar colisiones y gestionar la desaparición de planetas
+        for (auto& planet : planets) {
+            for (auto& asteroid : asteroids) {
+                if (checkCollision(planet, asteroid)) {
+                    planet.isVisible = false;
+                    planet.respawnTime = currentTime + 5000; // Desaparece durante 5 segundos
+                }
+            }
         }
 
         // Actualizar la pantalla
