@@ -3,6 +3,10 @@
 #include <cstdlib>
 #include <ctime>
 #include <vector>
+#include <string>
+#include <iostream>
+#include <iomanip>
+#include <sstream>
 
 // Estructura para representar un planeta
 struct Planet {
@@ -22,15 +26,27 @@ struct Asteroid {
     SDL_Color color;
 };
 
+// Función para dibujar un círculo
+void drawCircle(SDL_Renderer* renderer, int x, int y, int radius, SDL_Color color) {
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
+    for (int w = 0; w < radius * 2; w++) {
+        for (int h = 0; h < radius * 2; h++) {
+            int dx = radius - w; // horizontal offset
+            int dy = radius - h; // vertical offset
+            if ((dx*dx + dy*dy) <= (radius * radius)) {
+                SDL_RenderDrawPoint(renderer, x + dx, y + dy);
+            }
+        }
+    }
+}
+
 // Función para actualizar y dibujar un planeta
 void updateAndDrawPlanet(SDL_Renderer* renderer, Planet& planet) {
     planet.angle += planet.speed;
     int x = planet.centerX + planet.orbitRadius * cos(planet.angle);
     int y = planet.centerY + planet.orbitRadius * sin(planet.angle);
 
-    SDL_SetRenderDrawColor(renderer, planet.color.r, planet.color.g, planet.color.b, 255);
-    SDL_Rect rect = { x - planet.size / 2, y - planet.size / 2, planet.size, planet.size };
-    SDL_RenderFillRect(renderer, &rect);
+    drawCircle(renderer, x, y, planet.size, planet.color);
 }
 
 // Función para actualizar y dibujar un asteroide
@@ -45,19 +61,6 @@ void updateAndDrawAsteroid(SDL_Renderer* renderer, Asteroid& asteroid) {
     SDL_SetRenderDrawColor(renderer, asteroid.color.r, asteroid.color.g, asteroid.color.b, 255);
     SDL_Rect rect = { asteroid.x - asteroid.size / 2, asteroid.y - asteroid.size / 2, asteroid.size, asteroid.size };
     SDL_RenderFillRect(renderer, &rect);
-}
-
-// Función para dibujar una nebulosa
-void drawNebula(SDL_Renderer* renderer) {
-    int centerX = rand() % 640;
-    int centerY = rand() % 480;
-    int radius = 50 + rand() % 100;
-
-    for (int i = 0; i < radius; i++) {
-        SDL_SetRenderDrawColor(renderer, rand() % 256, rand() % 256, rand() % 256, 128);
-        SDL_Rect rect = { centerX - i, centerY - i, 2 * i, 2 * i };
-        SDL_RenderFillRect(renderer, &rect);
-    }
 }
 
 // Función para dibujar un agujero negro
@@ -95,6 +98,8 @@ int main(int argc, char* argv[]) {
     srand(time(0));
     bool running = true;
     Uint32 startTime = SDL_GetTicks();
+    Uint32 frameCount = 0;
+    Uint32 lastFPSTime = SDL_GetTicks();  // Para controlar la impresión del FPS cada segundo
 
     // Crear planetas en órbitas
     for (int i = 0; i < 5; i++) {
@@ -131,6 +136,27 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        Uint32 currentTime = SDL_GetTicks();
+
+        // Calcular FPS
+        frameCount++;
+        float fps = frameCount / ((currentTime - startTime) / 1000.0f);
+
+        // Formatear FPS a dos enteros y dos decimales
+        std::ostringstream fpsStream;
+        fpsStream << std::fixed << std::setw(2) << std::setprecision(2) << fps;
+        std::string fpsFormatted = fpsStream.str();
+
+        // Actualizar título de la ventana
+        std::string title = "Space Screensaver - FPS: " + fpsFormatted;
+        SDL_SetWindowTitle(window, title.c_str());
+
+        // Imprimir FPS en la terminal cada segundo
+        if (currentTime - lastFPSTime >= 1000) {
+            std::cout << "FPS: " << fpsFormatted << std::endl;
+            lastFPSTime = currentTime;
+        }
+
         // Limpiar la pantalla
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
@@ -138,13 +164,8 @@ int main(int argc, char* argv[]) {
         // Dibujar estrellas
         drawStars(renderer);
 
-        // Dibujar agujero negro
+        // Dibujar agujero negro en el centro de la pantalla
         drawBlackHole(renderer, 320, 240);
-
-        // Dibujar nebulosas
-        if (rand() % 100 < 5) {
-            drawNebula(renderer);
-        }
 
         // Actualizar y dibujar planetas
         for (auto& planet : planets) {
@@ -160,11 +181,10 @@ int main(int argc, char* argv[]) {
         SDL_RenderPresent(renderer);
 
         // Controlar la tasa de cuadros por segundo
-        Uint32 elapsedTime = SDL_GetTicks() - startTime;
+        Uint32 elapsedTime = SDL_GetTicks() - currentTime;
         if (elapsedTime < 16) {
             SDL_Delay(16 - elapsedTime);  // 60 FPS
         }
-        startTime = SDL_GetTicks();
     }
 
     // Limpiar recursos
@@ -174,4 +194,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-
