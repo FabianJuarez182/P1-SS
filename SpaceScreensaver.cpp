@@ -46,11 +46,11 @@ struct Explosion {
 };
 
 struct NebulaPoint {
-    float x, y;               // Posición del punto
+    float x, y;               // Posiciï¿½n del punto
     float dx, dy;             // Velocidad en x e y
-    int size;                 // Tamaño del punto
+    int size;                 // Tamaï¿½o del punto
     SDL_Color color;          // Color actual del punto
-    float colorTransition;    // Controla la transición suave entre colores
+    float colorTransition;    // Controla la transiciï¿½n suave entre colores
     int colorStage;           // Etapa de color actual (0: verde, 1: celeste, etc.)
 };
 
@@ -119,14 +119,14 @@ std::vector<NebulaPoint> nebulaPoints;
 void initNebula(int numPoints) {
     nebulaPoints.resize(numPoints);
     for (auto& point : nebulaPoints) {
-        // Generar posición aleatoria en los bordes exteriores de la pantalla
+        // Generar posiciï¿½n aleatoria en los bordes exteriores de la pantalla
         point.x = (rand() % 640);
         point.y = (rand() % 480);
         
-        // Tamaño pequeño
+        // Tamaï¿½o pequeï¿½o
         point.size = 1 + rand() % 2;
 
-        // Velocidad inicial (muy lenta, se acelerará gradualmente)
+        // Velocidad inicial (muy lenta, se acelerarï¿½ gradualmente)
         point.dx = 0;
         point.dy = 0;
 
@@ -142,7 +142,7 @@ void updateAndDrawNebula(SDL_Renderer* renderer) {
     const float centerX = 320.0f;
     const float centerY = 240.0f;
 
-    // Colores clave para la interpolación
+    // Colores clave para la interpolaciï¿½n
     SDL_Color colors[] = {
         {128, 0, 128, 255},  // Morado
         {194, 52, 158, 255},  // M Morado
@@ -153,7 +153,7 @@ void updateAndDrawNebula(SDL_Renderer* renderer) {
     };
     const int numColors = 6;
 
-    // Función de interpolación de color
+    // Funciï¿½n de interpolaciï¿½n de color
     auto interpolateColor = [](SDL_Color colorA, SDL_Color colorB, float t) -> SDL_Color {
         SDL_Color result;
         result.r = Uint8(colorA.r + t * (colorB.r - colorA.r));
@@ -164,7 +164,7 @@ void updateAndDrawNebula(SDL_Renderer* renderer) {
     };
 
     for (auto& point : nebulaPoints) {
-        // Calcular la dirección hacia el centro
+        // Calcular la direcciï¿½n hacia el centro
         float directionX = centerX - point.x;
         float directionY = centerY - point.y;
 
@@ -177,13 +177,13 @@ void updateAndDrawNebula(SDL_Renderer* renderer) {
             point.dy += (directionY / distance) * 0.05f;
         }
 
-        // Actualizar la posición del punto
+        // Actualizar la posiciï¿½n del punto
         point.x += point.dx;
         point.y += point.dy;
 
         // Si el punto ha llegado cerca del centro, regenerarlo
         if (distance < 5) {
-            // Reaparecer en una nueva posición aleatoria en los bordes exteriores
+            // Reaparecer en una nueva posiciï¿½n aleatoria en los bordes exteriores
             point.x = (rand() % 640);
             point.y = (rand() % 480);
             point.dx = 0;
@@ -196,7 +196,7 @@ void updateAndDrawNebula(SDL_Renderer* renderer) {
         SDL_Color endColor = colors[(point.colorStage + 1) % numColors];
         point.color = interpolateColor(startColor, endColor, point.colorTransition);
 
-        // Incrementar la transición de color
+        // Incrementar la transiciï¿½n de color
         point.colorTransition += 0.02f;  // Ajustar velocidad de cambio de color
         if (point.colorTransition >= 1.0f) {
             point.colorTransition = 0.0f;
@@ -230,10 +230,10 @@ void drawThinCircle(SDL_Renderer* renderer, int x, int y, int radius, SDL_Color 
 void drawThinLine(SDL_Renderer* renderer, int centerX, int centerY, int length, int thickness, SDL_Color color, int distortionAmount) {
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 
-    // Dibujar la línea horizontal con distorsión
+    // Dibujar la lï¿½nea horizontal con distorsiï¿½n
     for (int x = -length / 2; x <= length / 2; x++) {
         for (int y = -thickness / 2; y <= thickness / 2; y++) {
-            // Agregar una pequeña distorsión aleatoria en cada punto de la línea
+            // Agregar una pequeï¿½a distorsiï¿½n aleatoria en cada punto de la lï¿½nea
             int distortionX = (rand() % (distortionAmount * 2)) - distortionAmount;
             int distortionY = (rand() % (distortionAmount * 2)) - distortionAmount;
             SDL_RenderDrawPoint(renderer, centerX + x + distortionX, centerY + y + distortionY);
@@ -245,9 +245,9 @@ void drawAccretionDisk(SDL_Renderer* renderer) {
     SDL_Color diskColor = {255, 165, 0, 255};  // Naranja
     int diskLength = 200;  // Longitud del disco
     int diskThickness = 7; // Grosor del disco
-    int distortionAmount = 3;  // Cantidad de distorsión
+    int distortionAmount = 3;  // Cantidad de distorsiï¿½n
 
-    // Dibujar el disco de acreción frente al agujero negro
+    // Dibujar el disco de acreciï¿½n frente al agujero negro
     drawThinLine(renderer, 320, 240, diskLength, diskThickness, diskColor, distortionAmount);
 }
 
@@ -367,7 +367,38 @@ bool checkCollision(Planet& planet, Asteroid& asteroid, Explosion& explosion) {
     return false;
 }
 
+// FunciÃ³n para verificar si una cadena es un nÃºmero
+bool isNumber(const std::string& str) {
+    // Verifica que no estÃ© vacÃ­a y que todos los caracteres sean dÃ­gitos
+    if (str.empty()) return false;
+    for (char const &c : str) {
+        if (!std::isdigit(c)) return false;
+    }
+    return true;
+}
+
 int main(int argc, char* argv[]) {
+
+        // ComprobaciÃ³n de parÃ¡metros
+    if (argc != 5) {  // Verificar si el nÃºmero de parÃ¡metros es exactamente 4
+        std::cerr << "Error: Se requieren exactamente 4 parÃ¡metros: <NÃºmero de nebulosas> <NÃºmero de estrellas> <NÃºmero de planetas> <NÃºmero de asteroides>" << std::endl;
+        return 1;
+    }
+
+    // Validar que cada parÃ¡metro sea un nÃºmero
+    for (int i = 1; i < argc; i++) {
+        if (!isNumber(argv[i])) {
+            std::cerr << "Error: El parÃ¡metro " << i << " ('" << argv[i] << "') no es un nÃºmero vÃ¡lido." << std::endl;
+            return 1;
+        }
+    }
+
+    // Convertir los argumentos a enteros
+    int numNebulaPoints = std::stoi(argv[1]);
+    int numStars = std::stoi(argv[2]);
+    int numPlanets = std::stoi(argv[3]);
+    int numAsteroids = std::stoi(argv[4]);
+
     // InicializaciÃ³n de SDL
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Window* window = SDL_CreateWindow("Space Screensaver",
@@ -376,7 +407,7 @@ int main(int argc, char* argv[]) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
     // Inicializar nebulosa con 300 puntos
-    initNebula(4000);
+    initNebula(numNebulaPoints);
     // InicializaciÃ³n de variables
     std::vector<Planet> planets;
     std::vector<Asteroid> asteroids;
@@ -388,7 +419,7 @@ int main(int argc, char* argv[]) {
     Uint32 lastFPSTime = SDL_GetTicks();  // Para controlar la impresiÃ³n del FPS cada segundo
     
     // Crear planetas en Ã³rbitas
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < numPlanets; i++) {
         Planet planet;
         planet.centerX = 320;
         planet.centerY = 240;
@@ -403,7 +434,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Crear asteroides
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < numAsteroids; i++) {
         Asteroid asteroid;
         asteroid.x = rand() % 640;
         asteroid.y = rand() % 480;
@@ -415,7 +446,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Crear estrellas
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < numStars; i++) {
         Star star;
         star.x = rand() % 640;
         star.y = rand() % 480;
