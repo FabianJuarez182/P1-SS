@@ -36,6 +36,15 @@ struct Star {
     float speed;           // Velocidad de movimiento
 };
 
+struct Explosion {
+    int x, y;              // Posición de la explosión
+    int radiusOrange;       // Radio actual del círculo naranja
+    int radiusYellow;       // Radio actual del círculo amarillo
+    int radiusWhite;        // Radio actual del círculo blanco
+    int maxRadius;          // Radio máximo de la explosión
+    bool isActive;          // Si la explosión está activa o no
+};
+
 // Función para dibujar un círculo
 void drawCircle(SDL_Renderer* renderer, int x, int y, int radius, SDL_Color color) {
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
@@ -173,6 +182,74 @@ void updateAndDrawStars(SDL_Renderer* renderer, std::vector<Star>& stars) {
     }
 }
 
+// Función para iniciar una explosión
+void startExplosion(Explosion& explosion, int x, int y) {
+    explosion.x = x;
+    explosion.y = y;
+    explosion.radiusOrange = 1;    // Comienza con un radio pequeño
+    explosion.radiusYellow = 0;    // El círculo amarillo tiene un pequeño retraso
+    explosion.radiusWhite = 0;     // El círculo blanco tiene más retraso
+    explosion.maxRadius = 30;      // Radio máximo de la explosión
+    explosion.isActive = true;     // Activar la explosión
+}
+
+// Función para dibujar una explosión con degradado de tres colores
+void drawExplosion(SDL_Renderer* renderer, Explosion& explosion) {
+    if (explosion.isActive) {
+        // Incrementar el tamaño de los círculos
+        if (explosion.radiusOrange < explosion.maxRadius) {
+            explosion.radiusOrange += 2;  // Círculo naranja crece más rápido
+        }
+        if (explosion.radiusOrange > 5 && explosion.radiusYellow < explosion.maxRadius) {
+            explosion.radiusYellow += 2;  // Círculo amarillo comienza un poco después
+        }
+        if (explosion.radiusYellow > 10 && explosion.radiusWhite < explosion.maxRadius) {
+            explosion.radiusWhite += 2;  // Círculo blanco comienza después del amarillo
+        }
+
+        // Dibujar el círculo naranja (capa más externa)
+        SDL_SetRenderDrawColor(renderer, 255, 69, 0, 255);  // Naranja
+        drawCircle(renderer, explosion.x, explosion.y, explosion.radiusOrange, {255, 69, 0, 255});
+
+        // Dibujar el círculo amarillo (capa intermedia)
+        if (explosion.radiusYellow > 0) {
+            SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);  // Amarillo
+            drawCircle(renderer, explosion.x, explosion.y, explosion.radiusYellow, {255, 255, 0, 255});
+        }
+
+        // Dibujar el círculo blanco (capa más interna)
+        if (explosion.radiusWhite > 0) {
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);  // Blanco
+            drawCircle(renderer, explosion.x, explosion.y, explosion.radiusWhite, {255, 255, 255, 255});
+        }
+
+        // Desactivar la explosión cuando todos los radios alcanzan su tamaño máximo
+        if (explosion.radiusWhite >= explosion.maxRadius) {
+            explosion.isActive = false;
+        }
+    }
+}
+
+// Función para verificar colisiones entre un asteroide y un planeta
+bool checkCollision(Planet& planet, Asteroid& asteroid, Explosion& explosion) {
+    if (!planet.isVisible) return false;
+
+    int planetX = planet.centerX + planet.orbitRadius * cos(planet.angle);
+    int planetY = planet.centerY + planet.orbitRadius * sin(planet.angle);
+
+    int deltaX = asteroid.x - planetX;
+    int deltaY = asteroid.y - planetY;
+    int distance = sqrt(deltaX * deltaX + deltaY * deltaY);
+
+    if (distance < (planet.size + asteroid.size)) {
+        startExplosion(explosion, planetX, planetY);  // Color rojo para la explosión
+        planet.isVisible = false;
+        planet.respawnTime = SDL_GetTicks() + 5000;  // El planeta reaparece en 5 segundos
+        return true;
+    }
+    return false;
+}
+
 int main(int argc, char* argv[]) {
     // Inicialización de SDL
     SDL_Init(SDL_INIT_VIDEO);
@@ -228,6 +305,8 @@ int main(int argc, char* argv[]) {
         stars.push_back(star);
     }
 
+    std::vector<Explosion> explosions(planets.size());
+
     // Bucle principal
     while (running) {
         // Manejo de eventos
@@ -275,8 +354,9 @@ int main(int argc, char* argv[]) {
         //}
 
         // Actualizar y dibujar planetas
-        for (auto& planet : planets) {
-            updateAndDrawPlanet(renderer, planet, currentTime);
+        for (size_t i = 0; i < planets.size(); i++) {
+            updateAndDrawPlanet(renderer, planets[i], currentTime);
+            drawExplosion(renderer, explosions[i]);
         }
 
         // Actualizar y dibujar asteroides
@@ -285,11 +365,11 @@ int main(int argc, char* argv[]) {
         }
 
         // Verificar colisiones y gestionar la desaparición de planetas
-        for (auto& planet : planets) {
+        for (size_t i = 0; i < planets.size(); i++) {
             for (auto& asteroid : asteroids) {
-                if (checkCollision(planet, asteroid)) {
-                    planet.isVisible = false;
-                    planet.respawnTime = currentTime + 5000; // Desaparece durante 5 segundos
+                if (checkCollision(planets[i], asteroid, explosions[i])) {
+                    planets[i].isVisible = false;
+                    planets[i].respawnTime = currentTime + 5000; // Desaparece durante 5 segundos
                 }
             }
         }
