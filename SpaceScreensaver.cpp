@@ -49,7 +49,9 @@ struct NebulaPoint {
     float x, y;               // Posici髇 del punto
     float dx, dy;             // Velocidad en x e y
     int size;                 // Tama駉 del punto
-    SDL_Color color;          // Color del punto (azul, morado, rosado)
+    SDL_Color color;          // Color actual del punto
+    float colorTransition;    // Controla la transici髇 suave entre colores
+    int colorStage;           // Etapa de color actual (0: verde, 1: celeste, etc.)
 };
 
 // Funci贸n para dibujar un c铆rculo
@@ -113,6 +115,7 @@ bool checkCollision(Planet& planet, Asteroid& asteroid) {
     return distance < (planet.size + asteroid.size);
 }
 
+std::vector<NebulaPoint> nebulaPoints;
 void initNebula(int numPoints) {
     nebulaPoints.resize(numPoints);
     for (auto& point : nebulaPoints) {
@@ -138,14 +141,35 @@ void initNebula(int numPoints) {
 void updateAndDrawNebula(SDL_Renderer* renderer) {
     const float centerX = 320.0f;
     const float centerY = 240.0f;
-    
+
+    // Colores clave para la interpolaci髇
+    SDL_Color colors[] = {
+        {128, 0, 128, 255},  // Morado
+        {194, 52, 158, 255},  // M Morado
+        {255, 105, 180, 255}, // Rosado
+        {0, 255, 255, 255},  // Celeste
+        {0, 128, 255, 255},  // M Celeste
+        {64, 0, 194, 255}    // M azul
+    };
+    const int numColors = 6;
+
+    // Funci髇 de interpolaci髇 de color
+    auto interpolateColor = [](SDL_Color colorA, SDL_Color colorB, float t) -> SDL_Color {
+        SDL_Color result;
+        result.r = Uint8(colorA.r + t * (colorB.r - colorA.r));
+        result.g = Uint8(colorA.g + t * (colorB.g - colorA.g));
+        result.b = Uint8(colorA.b + t * (colorB.b - colorA.b));
+        result.a = 255;  // Mantener la opacidad fija
+        return result;
+    };
+
     for (auto& point : nebulaPoints) {
         // Calcular la direcci髇 hacia el centro
         float directionX = centerX - point.x;
         float directionY = centerY - point.y;
-        
+
         // Calcular la distancia al centro
-        float distance = sqrt(directionX * directionY + directionY * directionY);
+        float distance = sqrt(directionX * directionX + directionY * directionY);
 
         // Acelerar el punto mientras se acerca al centro
         if (distance > 0) {
@@ -164,9 +188,22 @@ void updateAndDrawNebula(SDL_Renderer* renderer) {
             point.y = (rand() % 480);
             point.dx = 0;
             point.dy = 0;
+            point.colorStage = rand() % numColors; // Comienza en una etapa de color aleatoria
         }
 
-        // Dibujar el punto
+        // Interpolar el color suavemente
+        SDL_Color startColor = colors[point.colorStage];
+        SDL_Color endColor = colors[(point.colorStage + 1) % numColors];
+        point.color = interpolateColor(startColor, endColor, point.colorTransition);
+
+        // Incrementar la transici髇 de color
+        point.colorTransition += 0.02f;  // Ajustar velocidad de cambio de color
+        if (point.colorTransition >= 1.0f) {
+            point.colorTransition = 0.0f;
+            point.colorStage = (point.colorStage + 1) % numColors;  // Cambiar al siguiente color
+        }
+
+        // Dibujar el punto de la nebulosa
         SDL_SetRenderDrawColor(renderer, point.color.r, point.color.g, point.color.b, point.color.a);
         SDL_Rect rect = { int(point.x), int(point.y), point.size, point.size };
         SDL_RenderFillRect(renderer, &rect);
@@ -188,6 +225,30 @@ void drawThinCircle(SDL_Renderer* renderer, int x, int y, int radius, SDL_Color 
             }
         }
     }
+}
+
+void drawThinLine(SDL_Renderer* renderer, int centerX, int centerY, int length, int thickness, SDL_Color color, int distortionAmount) {
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+
+    // Dibujar la l韓ea horizontal con distorsi髇
+    for (int x = -length / 2; x <= length / 2; x++) {
+        for (int y = -thickness / 2; y <= thickness / 2; y++) {
+            // Agregar una peque馻 distorsi髇 aleatoria en cada punto de la l韓ea
+            int distortionX = (rand() % (distortionAmount * 2)) - distortionAmount;
+            int distortionY = (rand() % (distortionAmount * 2)) - distortionAmount;
+            SDL_RenderDrawPoint(renderer, centerX + x + distortionX, centerY + y + distortionY);
+        }
+    }
+}
+
+void drawAccretionDisk(SDL_Renderer* renderer) {
+    SDL_Color diskColor = {255, 165, 0, 255};  // Naranja
+    int diskLength = 200;  // Longitud del disco
+    int diskThickness = 7; // Grosor del disco
+    int distortionAmount = 3;  // Cantidad de distorsi髇
+
+    // Dibujar el disco de acreci髇 frente al agujero negro
+    drawThinLine(renderer, 320, 240, diskLength, diskThickness, diskColor, distortionAmount);
 }
 
 // Funci贸n para dibujar un agujero negro con un disco de acreci贸n inestable
@@ -220,6 +281,8 @@ void drawBlackHole(SDL_Renderer* renderer, int centerX, int centerY) {
         // Dibujar cada c铆rculo de luz delgado con distorsi贸n
         drawThinCircle(renderer, centerX, centerY, r, {Uint8(red), Uint8(green), Uint8(blue), Uint8(alpha)}, distortionAmount);
     }
+    
+    drawAccretionDisk(renderer);
 }
 
 // Funci贸n para actualizar y dibujar estrellas
@@ -313,7 +376,7 @@ int main(int argc, char* argv[]) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
     // Inicializar nebulosa con 300 puntos
-    initNebula(900);
+    initNebula(4000);
     // Inicializaci贸n de variables
     std::vector<Planet> planets;
     std::vector<Asteroid> asteroids;
