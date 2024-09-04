@@ -45,6 +45,13 @@ struct Explosion {
     bool isActive;          // Si la explosi√≥n est√° activa o no
 };
 
+struct NebulaPoint {
+    float x, y;               // PosiciÛn del punto
+    float dx, dy;             // Velocidad en x e y
+    int size;                 // TamaÒo del punto
+    SDL_Color color;          // Color del punto (azul, morado, rosado)
+};
+
 // Funci√≥n para dibujar un c√≠rculo
 void drawCircle(SDL_Renderer* renderer, int x, int y, int radius, SDL_Color color) {
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
@@ -106,15 +113,62 @@ bool checkCollision(Planet& planet, Asteroid& asteroid) {
     return distance < (planet.size + asteroid.size);
 }
 
-// Funci√≥n para dibujar una nebulosa
-void drawNebula(SDL_Renderer* renderer) {
-    int centerX = rand() % 640;
-    int centerY = rand() % 480;
-    int radius = 50 + rand() % 100;
+void initNebula(int numPoints) {
+    nebulaPoints.resize(numPoints);
+    for (auto& point : nebulaPoints) {
+        // Generar posiciÛn aleatoria en los bordes exteriores de la pantalla
+        point.x = (rand() % 640);
+        point.y = (rand() % 480);
+        
+        // TamaÒo pequeÒo
+        point.size = 1 + rand() % 2;
 
-    for (int i = 0; i < radius; i++) {
-        SDL_SetRenderDrawColor(renderer, rand() % 256, rand() % 256, rand() % 256, 128);
-        SDL_Rect rect = { centerX - i, centerY - i, 2 * i, 2 * i };
+        // Velocidad inicial (muy lenta, se acelerar· gradualmente)
+        point.dx = 0;
+        point.dy = 0;
+
+        // Generar colores en la gama de azul, morado, rosado
+        int red = 150 + rand() % 106;
+        int green = 50 + rand() % 100;
+        int blue = 150 + rand() % 106;
+        point.color = { Uint8(red), Uint8(green), Uint8(blue), 128 }; // Semi-transparente
+    }
+}
+
+void updateAndDrawNebula(SDL_Renderer* renderer) {
+    const float centerX = 320.0f;
+    const float centerY = 240.0f;
+    
+    for (auto& point : nebulaPoints) {
+        // Calcular la direcciÛn hacia el centro
+        float directionX = centerX - point.x;
+        float directionY = centerY - point.y;
+        
+        // Calcular la distancia al centro
+        float distance = sqrt(directionX * directionY + directionY * directionY);
+
+        // Acelerar el punto mientras se acerca al centro
+        if (distance > 0) {
+            point.dx += (directionX / distance) * 0.05f;  // Aumentar velocidad hacia el centro
+            point.dy += (directionY / distance) * 0.05f;
+        }
+
+        // Actualizar la posiciÛn del punto
+        point.x += point.dx;
+        point.y += point.dy;
+
+        // Si el punto ha llegado cerca del centro, regenerarlo
+        if (distance < 5) {
+            // Reaparecer en una nueva posiciÛn aleatoria en los bordes exteriores
+            point.x = (rand() % 640);
+            point.y = (rand() % 480);
+            point.dx = 0;
+            point.dy = 0;
+        }
+
+        // Dibujar el punto
+        SDL_SetRenderDrawColor(renderer, point.color.r, point.color.g, point.color.b, point.color.a);
+        SDL_Rect rect = { int(point.x), int(point.y), point.size, point.size };
         SDL_RenderFillRect(renderer, &rect);
     }
 }
@@ -258,6 +312,8 @@ int main(int argc, char* argv[]) {
                                           640, 480, SDL_WINDOW_SHOWN);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
+    // Inicializar nebulosa con 300 puntos
+    initNebula(900);
     // Inicializaci√≥n de variables
     std::vector<Planet> planets;
     std::vector<Asteroid> asteroids;
@@ -267,7 +323,7 @@ int main(int argc, char* argv[]) {
     Uint32 startTime = SDL_GetTicks();
     Uint32 frameCount = 0;
     Uint32 lastFPSTime = SDL_GetTicks();  // Para controlar la impresi√≥n del FPS cada segundo
-
+    
     // Crear planetas en √≥rbitas
     for (int i = 0; i < 8; i++) {
         Planet planet;
@@ -341,17 +397,15 @@ int main(int argc, char* argv[]) {
         // Limpiar la pantalla
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
-
+        
+        // Dibujar Nebulosa
+        updateAndDrawNebula(renderer);
+        
         // Dibujar estrellas
         updateAndDrawStars(renderer, stars);
 
         // Dibujar agujero negro en el centro de la pantalla
         drawBlackHole(renderer, 320, 240);
-
-        // Dibujar nebulosas
-        //if (rand() % 100 < 5) {
-            //drawNebula(renderer);
-        //}
 
         // Actualizar y dibujar planetas
         for (size_t i = 0; i < planets.size(); i++) {
