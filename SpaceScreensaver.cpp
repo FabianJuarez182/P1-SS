@@ -7,6 +7,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <cstdlib>
 
 // Estructura para representar un planeta
 struct Planet {
@@ -37,12 +38,12 @@ struct Star {
 
 // Función para dibujar un círculo
 void drawCircle(SDL_Renderer* renderer, int x, int y, int radius, SDL_Color color) {
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
     for (int w = 0; w < radius * 2; w++) {
         for (int h = 0; h < radius * 2; h++) {
-            int dx = radius - w; // horizontal offset
-            int dy = radius - h; // vertical offset
-            if ((dx*dx + dy*dy) <= (radius * radius)) {
+            int dx = radius - w; // desplazamiento horizontal
+            int dy = radius - h; // desplazamiento vertical
+            if ((dx * dx + dy * dy) <= (radius * radius)) {
                 SDL_RenderDrawPoint(renderer, x + dx, y + dy);
             }
         }
@@ -109,22 +110,52 @@ void drawNebula(SDL_Renderer* renderer) {
     }
 }
 
-// Función para dibujar un agujero negro
+// Función para dibujar un círculo delgado
+void drawThinCircle(SDL_Renderer* renderer, int x, int y, int radius, SDL_Color color, int distortionAmount) {
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    
+    // Dibujar solo los puntos en el borde del círculo
+    for (int w = -radius; w <= radius; w++) {
+        for (int h = -radius; h <= radius; h++) {
+            if (w * w + h * h <= radius * radius && w * w + h * h > (radius - 1) * (radius - 1)) {
+                // Agregar una pequeña distorsión aleatoria en cada punto
+                int distortionX = (rand() % (distortionAmount * 2)) - distortionAmount;
+                int distortionY = (rand() % (distortionAmount * 2)) - distortionAmount;
+                SDL_RenderDrawPoint(renderer, x + w + distortionX, y + h + distortionY);
+            }
+        }
+    }
+}
+
+// Función para dibujar un agujero negro con un disco de acreción inestable
 void drawBlackHole(SDL_Renderer* renderer, int centerX, int centerY) {
-    int radius = 50;
-    for (int i = 0; i < radius; i++) {
-        int intensity = 255 - (i * 5);
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, intensity);
-        SDL_Rect rect = { centerX - i, centerY - i, 2 * i, 2 * i };
-        SDL_RenderFillRect(renderer, &rect);
+    int blackHoleRadius = 50;              // Radio del agujero negro (centro completamente negro)
+    int accretionDiskInnerRadius = 60;     // Radio interior del disco de acreción
+    int accretionDiskOuterRadius = 80;    // Radio exterior del disco de acreción
+    int distortionAmount = 2;              // Cantidad de distorsión para simular inestabilidad
+
+    // 1. Dibujar el agujero negro en el centro (completamente negro)
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);  // Color negro sólido
+    for (int r = 0; r <= blackHoleRadius; r++) {
+        for (int w = -r; w <= r; w++) {
+            for (int h = -r; h <= r; h++) {
+                if (w * w + h * h <= r * r) {  // Verifica que el punto esté dentro del círculo
+                    SDL_RenderDrawPoint(renderer, centerX + w, centerY + h);
+                }
+            }
+        }
     }
 
-    // Efecto de distorsión visual alrededor del agujero negro
-    for (int i = radius; i < radius + 10; i++) {
-        int distortion = rand() % 10;
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_Rect rect = { centerX - i + distortion, centerY - i + distortion, 2 * i, 2 * i };
-        SDL_RenderDrawRect(renderer, &rect);
+    // 2. Dibujar los aros delgados y distorsionados (disco de acreción)
+    for (int r = accretionDiskInnerRadius; r <= accretionDiskOuterRadius; r += 5) {
+        // Colores cálidos: amarillo a naranja
+        int red = 255;
+        int green = 165 + (r % 50);  // Degradado para obtener tonos naranja y amarillo
+        int blue = 0;
+        int alpha = 255 - (r - accretionDiskInnerRadius) * 2;  // Degradado de opacidad
+
+        // Dibujar cada círculo de luz delgado con distorsión
+        drawThinCircle(renderer, centerX, centerY, r, {Uint8(red), Uint8(green), Uint8(blue), Uint8(alpha)}, distortionAmount);
     }
 }
 
