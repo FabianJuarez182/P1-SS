@@ -39,12 +39,29 @@ sudo apt install libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev libsdl2-mixer-dev
 ```
 
 ## :card_file_box: Uso
+
+### Programa secuencial
 Como primer paso, debemos compilar el programa en la terminal:
 
 ```shell
-g++ -o SpaceScreensaver SpaceScreensaverS.cpp -lSDL2 -fopenmp
+g++ -o SpaceScreensaver SpaceScreensaverS.cpp -lSDL2 
 ```
 
+Luego, ejecutamos el programa en la Máquina Virtual:
+```shell
+./SpaceScreensaver <num_nebulas> <num_stars> <num_planets> <num_asteroids>
+```
+
+Ejemplo de ejecución del programa:
+```shell
+./SpaceScreensaver 500 100 5 10
+```
+
+### Programa Paralelo
+
+```shell
+g++ -o SpaceScreensaver SpaceScreensaverP.cpp -lSDL2  -fopenmp
+```
 Luego, ejecutamos el programa en la Máquina Virtual:
 ```shell
 ./SpaceScreensaver <num_nebulas> <num_stars> <num_planets> <num_asteroids>
