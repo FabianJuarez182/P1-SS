@@ -352,14 +352,12 @@ void drawExplosion(SDL_Renderer* renderer, Explosion& explosion) {
 }
 
 void updateAndDrawPlanets(SDL_Renderer* renderer, std::vector<Planet>& planets, Uint32 currentTime){
-    #pragma omp parallel for
     for (size_t i = 0; i < planets.size(); i++) {
         updateAndDrawPlanet(renderer, planets[i], currentTime);
     }
 }
 
 void updateAndDrawAsteroids(SDL_Renderer* renderer, std::vector<Asteroid>& asteroids){
-    #pragma omp parallel for
     for (size_t i = 0; i < asteroids.size(); i++){
         updateAndDrawAsteroid(renderer, asteroids[i]);
     }    
@@ -386,7 +384,6 @@ bool checkCollision(Planet& planet, Asteroid& asteroid, Explosion& explosion) {
 }
 
 void drawAllExplosions(SDL_Renderer* renderer, std::vector<Explosion>& explosions){
-    #pragma omp parallel for
     for (size_t i = 0; i < explosions.size(); i++){
         drawExplosion(renderer, explosions[i]);
     }
